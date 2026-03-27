@@ -1,41 +1,52 @@
 /**
  * useServerInfo.js
- * Hook que busca o IP da VM Azure e monta a lista de servidores CS2.
- * Atualiza automaticamente a cada 60 segundos.
+ * Lista de servidores dinâmica: o backend guarda quem reportou (ip:port) e o frontend monta a lista a partir disso.
+ * Também busca dados da VM Azure para o header (vmInfo). Polling a cada 10s para refletir servidores que caíram (docker down) ou subiram.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchServerInfo } from '../services/azureService';
+import { fetchServerStatus } from '../services/serverStatusService';
 
-const CS2_PORT  = parseInt(import.meta.env.VITE_CS2_PORT  || '27015');
-const GOTV_PORT = parseInt(import.meta.env.VITE_GOTV_PORT || '27020');
-
-function buildServers(ip) {
-  if (!ip) return [];
-  return [
-    {
-      id: 1,
-      name: 'BR DEATHMATCH #1',
-      ip,
-      port: CS2_PORT,
-      map: 'de_mirage',
-      players: null,   // futuro: integrar GameDig ou similar
-      maxPlayers: 16,
-      ping: null,
-      tags: ['DM', '128tick'],
-    },
-    {
-      id: 2,
-      name: 'BR DEATHMATCH GOTV',
-      ip,
-      port: GOTV_PORT,
-      map: 'de_mirage',
-      players: null,
-      maxPlayers: 16,
-      ping: null,
-      tags: ['GOTV'],
-    },
-  ];
+function buildServersFromStatus(status, vmInfo) {
+  if (!status || typeof status !== 'object') return [];
+  const fallbackIp = vmInfo?.ip ?? '';
+  return Object.entries(status)
+    .filter(([, data]) => data && (data.port != null && data.port > 0))
+    .map(([key, data]) => {
+      const port = Number(data.port);
+      const ip = (data.ip != null && String(data.ip).trim() !== '') ? String(data.ip).trim() : fallbackIp;
+      if (!ip) return null;
+      const map = data.map ?? '—';
+      const gameMode = data.gameMode ?? null;
+      const displayName = data.displayName;
+      const name = displayName || (gameMode && map
+        ? `${gameMode} — ${map}`
+        : map !== '—'
+          ? map
+          : `${ip}:${port}`);
+      const tags = [];
+      const isWarmup = gameMode === 'WARMUP';
+      if (gameMode) tags.push(gameMode);
+      if (data.hasPassword) tags.push('LOBBY PRIVADA');
+      if (port === 27020) tags.push('GOTV');
+      else tags.push(isWarmup ? 'WARMUP VIP' : 'DM');
+      return {
+        id: key,
+        name,
+        ip,
+        port,
+        map,
+        gameMode,
+        hasPassword: Boolean(data.hasPassword),
+        players: typeof data.playerCount === 'number' ? data.playerCount : null,
+        maxPlayers: 16,
+        ping: null,
+        tags: tags.length ? tags : ['CS2'],
+        top3: Array.isArray(data.top3) ? data.top3 : [],
+      };
+    })
+    .filter(Boolean);
 }
 
 export function useServerInfo() {
@@ -50,12 +61,15 @@ export function useServerInfo() {
       setLoading(true);
       setError(null);
 
-      const info = await fetchServerInfo();
-      setVmInfo(info);
-      setServers(buildServers(info.ip));
+      const [info, status] = await Promise.all([
+        fetchServerInfo().catch(() => null),
+        fetchServerStatus().catch(() => ({})),
+      ]);
+      setVmInfo(info ?? null);
+      setServers(buildServersFromStatus(status, info ?? null));
       setLastUpdate(new Date());
     } catch (err) {
-      setError(err.message || 'Erro ao buscar informações da VM');
+      setError(err.message || 'Erro ao buscar dados');
     } finally {
       setLoading(false);
     }
@@ -63,7 +77,7 @@ export function useServerInfo() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 60_000); // atualiza a cada 60s
+    const interval = setInterval(load, 10_000); // 10s: servidor que caiu some em até ~50s (backend TTL) + 10s
     return () => clearInterval(interval);
   }, [load]);
 

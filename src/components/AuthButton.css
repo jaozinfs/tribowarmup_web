@@ -1,0 +1,139 @@
+.auth-loading {
+  color: var(--text-mute);
+  font-size: 12px;
+}
+
+.auth-logged {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.auth-profile-link:hover {
+  background: rgba(245, 166, 35, 0.08);
+  color: var(--gold);
+}
+
+.auth-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid var(--border2);
+}
+
+.auth-level {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.auth-level-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.auth-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-steam-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+  background: rgba(74, 222, 128, 0.08);
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+.auth-btn-logout {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.auth-btn-logout:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.auth-btn-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #1b2838 0%, #2a475e 50%, #1b2838 100%);
+  border: 1px solid #66c0f4;
+  color: #c7d5e0;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.auth-btn-login:hover {
+  background: linear-gradient(135deg, #2a475e 0%, #1b2838 100%);
+  color: #fff;
+  border-color: #8bb4d4;
+  box-shadow: 0 0 20px rgba(102, 192, 244, 0.3);
+  transform: translateY(-1px);
+}
+
+.auth-steam-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: url('https://store.steampowered.com/favicon.ico') center/contain no-repeat;
+  opacity: 0.95;
+}
+
+.auth-name--vip {
+  color: var(--gold);
+  font-weight: 600;
+}
+.auth-vip-badge {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--gold), #c9a227);
+  color: #0a0a0a;
+}

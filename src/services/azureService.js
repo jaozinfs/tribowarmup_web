@@ -4,10 +4,10 @@
  * As credenciais Azure ficam seguras no servidor — não expostas no frontend.
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+import { getApiBaseUrl } from '../utils/apiBase';
 
 export async function fetchServerInfo() {
-  const res = await fetch(`${BACKEND_URL}/api/server-info`);
+  const res = await fetch(`${getApiBaseUrl()}/api/server-info`);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

@@ -1,0 +1,121 @@
+.progress-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  animation: progressFadeIn 0.25s ease-out;
+}
+
+@keyframes progressFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.progress-modal {
+  background: linear-gradient(135deg, #151820 0%, #10121a 100%);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+  border-radius: 12px;
+  padding: 28px 32px;
+  min-width: 320px;
+  max-width: 420px;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(245, 166, 35, 0.08);
+  animation: progressSlideIn 0.3s ease-out;
+}
+
+@keyframes progressSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.progress-modal-title {
+  font-family: var(--font-head);
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.progress-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.progress-modal-level-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(245, 166, 35, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(245, 166, 35, 0.2);
+}
+
+.progress-modal-level-old {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.progress-modal-level-arrow {
+  font-size: 18px;
+  color: var(--gold);
+}
+
+.progress-modal-level-new {
+  font-family: var(--font-head);
+  font-size: 20px;
+  color: var(--gold);
+}
+
+.progress-modal-points-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.progress-modal-points-label {
+  color: var(--text-dim);
+}
+
+.progress-modal-points-old {
+  color: var(--text-mute);
+}
+
+.progress-modal-points-delta {
+  font-weight: 700;
+}
+
+.progress-modal-points-delta.positive {
+  color: var(--green);
+}
+
+.progress-modal-points-delta.negative {
+  color: var(--red);
+}
+
+.progress-modal-points-new {
+  color: var(--text);
+}
+
+.progress-modal-btn {
+  width: 100%;
+  padding: 12px;
+}

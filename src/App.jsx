@@ -1,232 +1,285 @@
-import { useState } from 'react';
-import { useServerInfo } from './hooks/useServerInfo';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
+import { useProfile } from './hooks/useProfile';
+import { ProgressModal } from './components/ProgressModal';
+import { MissionsProgressModal } from './components/MissionsProgressModal';
+import { MissionsFloatingMenu } from './components/MissionsFloatingMenu';
+import ContactProfileModal from './components/ContactProfileModal';
+import { saveMarketingContact } from './services/profileService';
+import { TrackedButton } from './components/TrackedButton';
+import {
+  trackPageView,
+  trackVipPageView,
+  trackProfileView,
+  trackRankingView,
+  trackPugListView,
+  trackServersView,
+  trackPerformanceView,
+  trackSquadView,
+  enableAnalytics,
+  setAnalyticsUser,
+} from './utils/analytics';
+import HomePage from './pages/HomePage';
+import ServerListPage from './pages/ServerListPage';
+import LoadoutPage from './pages/LoadoutPage';
+import PugListPage from './pages/PugListPage';
+import PugLobbyPage from './pages/PugLobbyPage';
+import ProfilePage from './pages/ProfilePage';
+import RankingPage from './pages/RankingPage';
+import SquadPage from './pages/SquadPage';
+import PerformancePage from './pages/PerformancePage';
+import VipPage from './pages/VipPage';
+import PrivacyPage from './pages/PrivacyPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import MatchDetailsPage from './pages/MatchDetailsPage';
+import GiveawayPage from './pages/GiveawayPage';
+import InventoryPage from './pages/InventoryPage';
+import WalletPage from './pages/WalletPage';
+import FantasyPage from './pages/FantasyPage';
+import FantasyLayout from './pages/fantasy/FantasyLayout';
+import FantasyHomePage from './pages/fantasy/FantasyHomePage';
+import FantasyTeamPage from './pages/fantasy/FantasyTeamPage';
+import FantasyRankingPage from './pages/fantasy/FantasyRankingPage';
+import FantasyIntegratedPage from './pages/FantasyIntegratedPage';
+import WheelDashboard from './pages/admin/WheelDashboard';
+import GiveawayItemsAdmin from './pages/admin/GiveawayItemsAdmin';
+import AdminEndpoints from './pages/admin/AdminEndpoints';
+import AdminAffiliates from './pages/admin/AdminAffiliates';
+import AdminFantasy from './pages/admin/AdminFantasy';
+import AdminWallet from './pages/admin/AdminWallet';
+import AdminPoints from './pages/admin/AdminPoints';
+import AdminWarmupRanking from './pages/admin/AdminWarmupRanking';
+import AdminMissions from './pages/admin/AdminMissions';
+import PromoBannerModal from './components/PromoBannerModal';
+import AffiliateInviteModal from './components/AffiliateInviteModal';
+import MissionsPage from './pages/MissionsPage';
 import './index.css';
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function PlayerBar({ players, maxPlayers }) {
-  if (players === null) return (
-    <div className="playerbar-track">
-      <div className="playerbar-unknown" />
-    </div>
-  );
-  const pct = Math.min((players / maxPlayers) * 100, 100);
-  const cls = pct > 80 ? 'red' : pct > 50 ? 'yellow' : 'green';
-  return (
-    <div className="playerbar-track">
-      <div className={`playerbar-fill ${cls}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
+function AnalyticsTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    const path = location.pathname;
+    const search = location.search || '';
+    trackPageView(path + search);
+    const isProfilePath =
+      path === '/profile' ||
+      path.startsWith('/profile/') ||
+      path === '/perfil' ||
+      path.startsWith('/perfil/');
+    if (path === '/vip') trackVipPageView();
+    else if (isProfilePath) trackProfileView();
+    else if (path === '/ranking') trackRankingView();
+    else if (path === '/pug') trackPugListView(search.includes('lobbyType=squad') ? 'squad' : 'pug');
+    else if (path === '/servers') trackServersView();
+    else if (path === '/performance') trackPerformanceView();
+    else if (path === '/squad') trackSquadView();
+  }, [location.pathname, location.search]);
+  return null;
 }
 
-function PingBadge({ ping }) {
-  if (ping === null) return <span className="ping unknown">—</span>;
-  const cls = ping < 20 ? 'green' : ping < 60 ? 'yellow' : 'red';
-  return (
-    <span className={`ping ${cls}`}>
-      <span className="ping-dot" />
-      {ping}ms
-    </span>
-  );
-}
+function CookieBanner() {
+  const [visible, setVisible] = useState(false);
 
-function Tag({ label }) {
-  return <span className="tag">{label}</span>;
-}
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('cookie-consent');
+    if (stored === 'accepted') {
+      enableAnalytics();
+      setVisible(false);
+    } else if (stored === 'rejected') {
+      setVisible(false);
+    } else {
+      setVisible(true);
+    }
+  }, []);
 
-function VMStatusBadge({ status }) {
-  if (!status) return null;
-  const running = status.toLowerCase().includes('running');
-  return (
-    <span className={`vm-status ${running ? 'running' : 'stopped'}`}>
-      <span className="vm-status-dot" />
-      {status.toUpperCase()}
-    </span>
-  );
-}
-
-function ServerRow({ server, onCopy, copied }) {
-  const [expanded, setExpanded] = useState(false);
-  const connectStr = `connect ${server.ip}:${server.port}`;
-  const isCopied = copied === server.id;
-
-  return (
-    <div className={`server-row ${expanded ? 'expanded' : ''}`} onClick={() => setExpanded(e => !e)}>
-      <div className="server-grid">
-        {/* Name */}
-        <div className="col-name">
-          <div className="server-name">{server.name}</div>
-          <div className="server-addr">{server.ip}:{server.port}</div>
-        </div>
-
-        {/* Map */}
-        <div className="col-map">{server.map}</div>
-
-        {/* Players */}
-        <div className="col-players">
-          <div className="player-count">
-            <span className="players-now">{server.players ?? '?'}</span>
-            <span className="players-sep">/</span>
-            <span className="players-max">{server.maxPlayers}</span>
-          </div>
-          <PlayerBar players={server.players} maxPlayers={server.maxPlayers} />
-        </div>
-
-        {/* Ping */}
-        <div className="col-ping">
-          <PingBadge ping={server.ping} />
-        </div>
-
-        {/* Tags */}
-        <div className="col-tags">
-          {server.tags.map(t => <Tag key={t} label={t} />)}
-        </div>
-
-        {/* Action */}
-        <div className="col-action" onClick={e => e.stopPropagation()}>
-          <button
-            className={`btn-copy ${isCopied ? 'copied' : ''}`}
-            onClick={() => onCopy(server)}
-          >
-            {isCopied ? '✓ COPIADO' : '⎘ COPIAR'}
-          </button>
-        </div>
-      </div>
-
-      {/* Expanded */}
-      {expanded && (
-        <div className="server-detail" onClick={e => e.stopPropagation()}>
-          <div>
-            <div className="detail-label">COMANDO DE CONEXÃO</div>
-            <div className="connect-cmd">{connectStr}</div>
-          </div>
-          <div className="detail-actions">
-            <button
-              className={`btn-copy ${isCopied ? 'copied' : ''}`}
-              onClick={() => onCopy(server)}
-            >
-              {isCopied ? '✓ COPIADO' : '⎘ COPIAR IP'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main App ──────────────────────────────────────────────────────────────────
-
-export default function App() {
-  const { servers, vmInfo, loading, error, refresh, lastUpdate } = useServerInfo();
-  const [filter, setFilter] = useState('');
-  const [copied, setCopied] = useState(null);
-
-  const handleCopy = (server) => {
-    navigator.clipboard.writeText(`connect ${server.ip}:${server.port}`);
-    setCopied(server.id);
-    setTimeout(() => setCopied(null), 2000);
+  const accept = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('cookie-consent', 'accepted');
+    }
+    enableAnalytics();
+    setVisible(false);
   };
 
-  const filtered = servers.filter(s =>
-    s.name.toLowerCase().includes(filter.toLowerCase()) ||
-    s.map.toLowerCase().includes(filter.toLowerCase())
-  );
+  const reject = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('cookie-consent', 'rejected');
+    }
+    setVisible(false);
+  };
 
-  const totalPlayers = servers.reduce((a, s) => a + (s.players ?? 0), 0);
+  if (!visible) return null;
 
   return (
-    <div className="app">
-      <div className="scanlines" />
-      <div className="grid-bg" />
-      <div className="glow-orb" />
-
-      {/* ── Header ── */}
-      <header className="header">
-        <div className="header-left">
-          <div className="logo-hex" />
-          <div>
-            <div className="header-title">SERVER BROWSER</div>
-            <div className="header-sub">CS2 TRAINING SERVERS</div>
-          </div>
-          {vmInfo && <VMStatusBadge status={vmInfo.vmStatus} />}
-        </div>
-
-        <div className="header-right">
-          {vmInfo && (
-            <div className="vm-info">
-              <span className="vm-info-label">VM</span>
-              <span className="vm-info-value">{vmInfo.vmName}</span>
-              <span className="vm-info-sep">·</span>
-              <span className="vm-info-label">IP</span>
-              <span className="vm-info-value">{vmInfo.ip || '—'}</span>
-              <span className="vm-info-sep">·</span>
-              <span className="vm-info-value">{vmInfo.vmSize}</span>
-            </div>
-          )}
-          <div className="search-wrap">
-            <span className="search-icon">⌕</span>
-            <input
-              className="search-input"
-              placeholder="FILTRAR SERVIDORES..."
-              value={filter}
-              onChange={e => setFilter(e.target.value)}
-            />
-          </div>
-          <button className="btn-refresh" onClick={refresh} disabled={loading}>
-            {loading ? '↻' : '↺'} REFRESH
-          </button>
-        </div>
-      </header>
-
-      {/* ── Column headers ── */}
-      <div className="col-headers">
-        {['SERVIDOR', 'MAPA', 'JOGADORES', 'PING', 'TAGS', 'AÇÃO'].map(h => (
-          <div key={h} className="col-header">{h}</div>
-        ))}
+    <div
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        padding: '12px 16px',
+        background: 'rgba(15,23,42,0.96)',
+        borderTop: '1px solid rgba(148,163,184,0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        fontSize: '12px',
+      }}
+    >
+      <div style={{ color: 'rgba(226,232,240,0.9)', maxWidth: 520 }}>
+        Usamos cookies e tecnologias similares para estatísticas (Google Tag Manager / Analytics) e, quando configurado, anúncios
+        (Meta Pixel), conforme nossa{' '}
+        <a href="/privacidade" style={{ color: '#fbbf24' }}>
+          Política de Privacidade
+        </a>
+        . Ao aceitar, você consente com esse uso.
       </div>
-
-      {/* ── Content ── */}
-      <main className="main">
-        {loading && servers.length === 0 && (
-          <div className="state-msg">
-            <div className="spinner" />
-            <span>CONECTANDO À AZURE...</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="state-error">
-            <div className="error-icon">⚠</div>
-            <div>
-              <div className="error-title">ERRO AO BUSCAR DADOS</div>
-              <div className="error-msg">{error}</div>
-              <div className="error-hint">Verifique as variáveis no arquivo .env</div>
-            </div>
-            <button className="btn-refresh" onClick={refresh}>TENTAR NOVAMENTE</button>
-          </div>
-        )}
-
-        {!loading && !error && filtered.length === 0 && (
-          <div className="state-msg">NENHUM SERVIDOR ENCONTRADO</div>
-        )}
-
-        {filtered.map(server => (
-          <ServerRow
-            key={server.id}
-            server={server}
-            onCopy={handleCopy}
-            copied={copied}
-          />
-        ))}
-      </main>
-
-      {/* ── Footer ── */}
-      <footer className="footer">
-        <span>{filtered.length} SERVIDOR{filtered.length !== 1 ? 'ES' : ''} · {totalPlayers} JOGADORES ONLINE</span>
-        {lastUpdate && (
-          <span>ATUALIZADO {lastUpdate.toLocaleTimeString('pt-BR')}</span>
-        )}
-      </footer>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <TrackedButton
+          type="button"
+          onClick={reject}
+          style={{
+            padding: '6px 10px',
+            borderRadius: 999,
+            border: '1px solid rgba(148,163,184,0.7)',
+            background: 'transparent',
+            color: 'rgba(148,163,184,0.9)',
+            fontSize: 11,
+            cursor: 'pointer',
+          }}
+        >
+          Recusar
+        </TrackedButton>
+        <TrackedButton
+          type="button"
+          onClick={accept}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 999,
+            border: '1px solid rgba(245,166,35,0.8)',
+            background: 'linear-gradient(135deg,#f5a623,#c4851a)',
+            color: '#0b1120',
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Aceitar cookies
+        </TrackedButton>
+      </div>
     </div>
+  );
+}
+
+function AppContent() {
+  const auth = useAuth();
+  const profile = useProfile({ consumeProgressQueues: true });
+  useEffect(() => {
+    const p = profile.profile;
+    if (p && p.steamId) {
+      setAnalyticsUser({
+        steamId: p.steamId,
+        displayName: p.displayName,
+        isVip: p.isVip,
+        level: Number(p.level) || 1,
+        marketingEmail: p.marketingEmail || null,
+        marketingFullName: p.marketingFullName || null,
+        marketingPhone: p.marketingPhone || null,
+      });
+    } else {
+      setAnalyticsUser(null);
+    }
+  }, [profile.profile]);
+
+  const showMarketingGate =
+    Boolean(auth.steamId)
+    && !auth.loading
+    && !profile.loading
+    && profile.profile?.needsMarketingProfile === true;
+
+  return (
+    <>
+      <AnalyticsTracker />
+      <CookieBanner />
+      {showMarketingGate && (
+        <ContactProfileModal
+          variant="blocking"
+          initialValues={{
+            fullName: profile.profile?.marketingFullName || '',
+            email: profile.profile?.marketingEmail || '',
+            phone: profile.profile?.marketingPhone || '',
+          }}
+          onSubmit={async (data) => {
+            await saveMarketingContact(data);
+            await profile.refresh();
+          }}
+        />
+      )}
+      <AffiliateInviteModal />
+      <PromoBannerModal />
+      <MissionsFloatingMenu steamId={auth.steamId} isVip={Boolean(profile.profile?.isVip)} />
+      {profile.progressUpdate && (
+        <ProgressModal update={profile.progressUpdate} onClose={profile.clearProgressUpdate} />
+      )}
+      {profile.missionsProgressUpdate && (
+        <MissionsProgressModal
+          update={profile.missionsProgressUpdate}
+          onClose={profile.clearMissionsProgressUpdate}
+          isVip={Boolean(profile.profile?.isVip)}
+        />
+      )}
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/servers" element={<ServerListPage />} />
+        <Route path="/loadout" element={<LoadoutPage />} />
+        <Route path="/pug" element={<PugListPage />} />
+        <Route path="/pug/:lobbyId" element={<PugLobbyPage />} />
+        <Route path="/match/:matchId" element={<MatchDetailsPage />} />
+        {/* Perfil (rotas em português e inglês, ambas mapeando para a mesma página) */}
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile/:steamId" element={<ProfilePage />} />
+        <Route path="/perfil" element={<ProfilePage />} />
+        <Route path="/perfil/:steamId" element={<ProfilePage />} />
+        <Route path="/ranking" element={<RankingPage />} />
+        <Route path="/squad" element={<SquadPage />} />
+        <Route path="/performance" element={<PerformancePage />} />
+        <Route path="/vip" element={<VipPage />} />
+        <Route path="/privacidade" element={<PrivacyPage />} />
+        <Route path="/sobre" element={<AboutPage />} />
+        <Route path="/contato" element={<ContactPage />} />
+        <Route path="/giveaway" element={<GiveawayPage />} />
+        <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/wallet" element={<WalletPage />} />
+        <Route path="/missions" element={<MissionsPage />} />
+        <Route path="/fantasy" element={<FantasyIntegratedPage />} />
+        <Route path="/fantasy-v2" element={<FantasyLayout />}>
+          <Route index element={<FantasyHomePage />} />
+          <Route path="time" element={<FantasyTeamPage />} />
+          <Route path="ranking" element={<FantasyRankingPage />} />
+        </Route>
+        <Route path="/fantasy-legacy" element={<FantasyPage />} />
+        <Route path="/admin/wheel" element={<WheelDashboard />} />
+        <Route path="/admin/giveaway" element={<GiveawayItemsAdmin />} />
+        <Route path="/admin/points" element={<AdminPoints />} />
+        <Route path="/admin/warmup-ranking" element={<AdminWarmupRanking />} />
+        <Route path="/admin/affiliates" element={<AdminAffiliates />} />
+        <Route path="/admin/missions" element={<AdminMissions />} />
+        <Route path="/admin/fantasy" element={<AdminFantasy />} />
+        <Route path="/admin/wallet" element={<AdminWallet />} />
+        <Route path="/admin/endpoints" element={<AdminEndpoints />} />
+      </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
